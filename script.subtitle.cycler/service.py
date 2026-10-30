@@ -315,6 +315,12 @@ def wanted_languages():
     return {xbmc.convertLanguage(l, xbmc.ISO_639_2) for l in langs} - {''}
 
 
+def _external(track):
+    """Kodi lists loaded subtitle files as tracks too ("name (External)"); those are not the
+    video's own subtitle, and may be a file that shows nothing (a rar a subtitle add-on loaded)."""
+    return bool(track.get('isexternal')) or '(external)' in (track.get('name') or '').lower()
+
+
 def _lang3(code):
     code = code or ''
     return xbmc.convertLanguage(code.split('-')[0], xbmc.ISO_639_2) or code
@@ -326,7 +332,8 @@ def showing_wanted():
                                 .get('value') or [])}
     shown = _shown_subtitle()
     return bool(xbmc.getCondVisibility('VideoPlayer.SubtitlesEnabled') and shown
-                and _lang3(shown.get('language')) in want and not shown.get('isforced'))
+                and _lang3(shown.get('language')) in want and not shown.get('isforced')
+                and not _external(shown))
 
 
 def select_wanted_embedded(player):
@@ -344,10 +351,10 @@ def select_wanted_embedded(player):
         'subtitles', 'currentsubtitle', 'subtitleenabled']})
     shown = props.get('currentsubtitle') or {}
     if props.get('subtitleenabled') and _lang3(shown.get('language')) in want \
-            and not shown.get('isforced'):
+            and not shown.get('isforced') and not _external(shown):
         return False  # already showing a full subtitle in a wanted language
     tracks = [t for t in props.get('subtitles') or []
-              if _lang3(t.get('language')) in want and not t.get('isforced')
+              if _lang3(t.get('language')) in want and not t.get('isforced') and not _external(t)
               and 'forced' not in (t.get('name') or '').lower()]
     if not tracks:
         return False
@@ -395,14 +402,16 @@ def hold_done(player):
         return True  # a subtitle was loaded (downloaded, fixed or chosen)
     if player.tag_at or player.prefetch:
         return False
-    if not player.anime_auto and showing_wanted():
-        return True  # the video's own subtitle in your language is on (its gap fix may follow)
-    if player.embedded_busy:
-        return False
     if player.auto_started:
         # the automatic load is running in the button script; done when its lock is gone
         running = xbmcgui.Window(10000).getProperty('subtitlecycler.running')
         return not running and time.time() - player.auto_started > 3
+    if player.bad_sub:
+        return False  # a file that shows nothing was loaded: wait for the real subtitle
+    if not player.anime_auto and showing_wanted():
+        return True  # the video's own subtitle in your language is on (its gap fix may follow)
+    if player.embedded_busy:
+        return False
     # no automatic load was needed: give a subtitle add-on's own auto-download time to search
     # and download (a4kSubtitles often needs 10-15 s); the hold's own limit still applies
     return not player.anime_auto and time.time() - player.start > 25
@@ -417,11 +426,14 @@ def run():
             if player.prefetch and time.time() > player.prefetch:
                 player.prefetch = 0
                 if c.sync_on():
-                    try:
-                        # read the embedded subtitle timings now, so the first button press is quick
-                        c.reference_starts(player.getPlayingFile(), quiet=True)
-                    except Exception as e:
-                        c.log('prefetch failed: %s' % e, xbmc.LOGWARNING)
+                    # read the embedded subtitle timings now, so the first button press is quick;
+                    # in the background, a slow stream must not hold up everything else here
+                    def prefetch(video=player.getPlayingFile()):
+                        try:
+                            c.reference_starts(video, quiet=True)
+                        except Exception as e:
+                            c.log('prefetch failed: %s' % e, xbmc.LOGWARNING)
+                    threading.Thread(target=prefetch, daemon=True).start()
             if player.tag_at and time.time() > player.tag_at:
                 player.tag_at = 0
                 try:
