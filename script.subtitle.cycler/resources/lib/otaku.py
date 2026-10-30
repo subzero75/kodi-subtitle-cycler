@@ -432,6 +432,50 @@ def _most_results(metas, key=None):
     return best
 
 
+ID_KEYS = ('tmdb', 'tvdb', 'imdb', 'trakt', 'tvmaze', 'anidb', 'anilist', 'mal', 'kitsu')
+
+
+def _existing_info(player):
+    """What the playing item already carries (library id, the player add-on's ids, ...), so a
+    tag update adds the IMDb id instead of wiping what Kodi, Trakt or TMDb Helper use to mark
+    the episode as watched."""
+    info = {'ids': {}}
+    try:
+        t = player.getVideoInfoTag()
+    except Exception:
+        return info
+    for key in ID_KEYS:
+        try:
+            v = t.getUniqueID(key)
+        except Exception:
+            v = ''
+        if v:
+            info['ids'][key] = v
+    for name, getter in (('dbid', 'getDbId'), ('mediatype', 'getMediaType'), ('title', 'getTitle'),
+                         ('originaltitle', 'getOriginalTitle'), ('tvshow', 'getTVShowTitle'),
+                         ('season', 'getSeason'), ('episode', 'getEpisode'), ('year', 'getYear'),
+                         ('duration', 'getDuration'), ('plot', 'getPlot'), ('premiered', 'getPremieredAsW3C'),
+                         ('firstaired', 'getFirstAiredAsW3C')):
+        try:
+            info[name] = getattr(t, getter)()
+        except Exception:
+            pass
+    return info
+
+
+def _copy_info(tag, info):
+    """Put the item's own details back on the ListItem we hand to updateInfoTag."""
+    for setter, key in (('setDbId', 'dbid'), ('setYear', 'year'), ('setDuration', 'duration'),
+                        ('setPlot', 'plot'), ('setOriginalTitle', 'originaltitle'),
+                        ('setPremiered', 'premiered'), ('setFirstAired', 'firstaired')):
+        v = info.get(key)
+        if v and v != -1:
+            try:
+                getattr(tag, setter)(v)
+            except Exception:
+                pass
+
+
 def tag_playing(player):
     """Give the playing video the IMDb id, show, season and episode we found, so that Kodi's
     own subtitle search window, a4kSubtitles and any other subtitle add-on can search for it
@@ -444,6 +488,13 @@ def tag_playing(player):
         return False
     meta = None
     item = current()
+    info = _existing_info(player)
+    if not item and (info.get('dbid', -1) > 0 or info['ids']):
+        # A library item or one from a player add-on (TMDb Helper, ...) that carries its own
+        # ids: it is not ours to change. Watched marks, Trakt and resume points depend on them,
+        # and with a title and year a4kSubtitles finds the IMDb id itself.
+        c.log('playing video has its own ids %s, leaving its details alone' % info['ids'])
+        return False
     if item:
         found = candidates(item)
         meta = _most_results([m for m in found if m.get('imdb_id')],
@@ -463,7 +514,8 @@ def tag_playing(player):
             li = xbmcgui.ListItem(path=path)
             tag = li.getVideoInfoTag()
             tag.setIMDBNumber(meta['imdb_id'])
-            tag.setUniqueIDs({'imdb': meta['imdb_id']}, 'imdb')
+            tag.setUniqueIDs(dict(info['ids'], imdb=meta['imdb_id']), 'imdb')
+            _copy_info(tag, info)
             title = xbmc.getInfoLabel('VideoPlayer.Title') or meta.get('title') or ''
             if title:
                 tag.setTitle(title)
