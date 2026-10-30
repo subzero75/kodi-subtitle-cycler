@@ -225,6 +225,7 @@ def cycle(p):
                 mismatch.add(i)
                 checked += 1
                 continue
+            c.mark_seen(hashes[str(i)])  # shown, also when shown although it did not fit
             chosen, path, prepared = i, got, prep
             break
         if chosen is not None or limit_hit:

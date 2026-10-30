@@ -625,7 +625,15 @@ def prepare(path, episodes=()):
     when it is not a subtitle Kodi can show (NOTES says why).
     What was changed ('gapfix', 'sync +1.2s') is left in LAST_TAGS."""
     raw = read_bytes(path)
-    mark_seen(digest(raw))
+    got = _prepare_any(raw, path, episodes)
+    if got[0] and not NOTES:
+        # only a subtitle that will be shown counts as seen; a rar, an empty file or one
+        # whose timing does not fit must not make "a subtitle is ready" true
+        mark_seen(digest(raw))
+    return got
+
+
+def _prepare_any(raw, path, episodes):
     if raw[:4] == b'PK\x03\x04':
         # Some sites hand out zip archives (season packs, or a text file with a link)
         entries = unpack(raw, episodes)
