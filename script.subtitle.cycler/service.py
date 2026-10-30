@@ -18,6 +18,7 @@ class Player(xbmc.Player):
         self.embedded_done = set()
         self.embedded_busy = False
         self.holding = False
+        self.bad_sub = 0
         self.auto_started = 0
 
     @staticmethod
@@ -43,6 +44,7 @@ class Player(xbmc.Player):
         self.anime_auto = time.time() + 15
         self.auto_started = 0
         self.holding = False
+        self.bad_sub = 0
         if c.setting_on('hold_start', False):
             self.anime_auto = time.time() + 4  # no reason to wait while the video is paused
             # Optional: keep the video paused at its start until a subtitle is ready (or the
@@ -130,6 +132,15 @@ def check(player):
             text = c.decode(raw[:4096])
             if not text or not (c.TS.search(text) or c.is_ass(c.decode(raw) or '')):
                 skip(player, path, m, 'not a text subtitle')
+                if not player.bad_sub and not c.seen():
+                    # A subtitle add-on's own auto-download loaded something that shows nothing
+                    # (a rar season pack, a web page): load a real subtitle instead, as the
+                    # button would. Once per video.
+                    player.bad_sub = time.time()
+                    c.log('service: the subtitle add-on loaded %s, which is not a subtitle; '
+                          'loading one that is' % os.path.basename(path))
+                    if not player.anime_auto:
+                        player.anime_auto = time.time() + 1
                 continue
             if c.digest(raw) in c.seen():
                 skip(player, path, m, 'already loaded')
@@ -364,6 +375,8 @@ def auto_load_reason(player):
     """Why the button logic should load a subtitle now, or None."""
     if c.seen():
         return None  # a subtitle was already loaded
+    if player.bad_sub:
+        return 'the subtitle loaded automatically shows nothing'
     if Player._is_otaku():
         if not c.setting_on('otaku_auto') or has_wanted_subtitle(player):
             return None  # the release brings a subtitle in a wanted language itself
@@ -390,8 +403,9 @@ def hold_done(player):
         # the automatic load is running in the button script; done when its lock is gone
         running = xbmcgui.Window(10000).getProperty('subtitlecycler.running')
         return not running and time.time() - player.auto_started > 3
-    # no automatic load was needed: give a subtitle add-on's own auto-download a moment
-    return not player.anime_auto and time.time() - player.start > 12
+    # no automatic load was needed: give a subtitle add-on's own auto-download time to search
+    # and download (a4kSubtitles often needs 10-15 s); the hold's own limit still applies
+    return not player.anime_auto and time.time() - player.start > 25
 
 
 def run():
