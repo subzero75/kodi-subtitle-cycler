@@ -50,7 +50,7 @@ Running the add-on from the Programs menu (with no video playing) opens its sett
 | Find subtitles for anime played from Otaku | On | Experimental. a4kSubtitles search with the ids from Otaku's database. Only does something while an Otaku episode plays |
 | Load a subtitle automatically when an Otaku episode starts | On | About 15 seconds after the episode starts, the first subtitle that fits the video is loaded |
 | Load a subtitle automatically when the video has no IMDb id | On | a4kSubtitles only auto-downloads when Kodi knows the IMDb id, and some players (e.g. some TMDb Helper players) do not pass it on. Then the first subtitle that fits is loaded about 15 seconds after the start, unless the video already has a subtitle track in one of your subtitle languages |
-| Load a subtitle automatically for every video | Off | For videos with an IMDb id, when you use a subtitle add-on that doesn't download by itself (e.g. SubBridge). The first result of Kodi's chosen subtitle service is loaded, unless the video already has a subtitle in one of your languages. Skipped while a4kSubtitles' own auto-download is on |
+| Load a subtitle automatically for every video | Off | For videos with an IMDb id, when you use a subtitle add-on that doesn't download by itself (e.g. SubBridge). The first result of Kodi's chosen subtitle service is loaded, unless the video already has a subtitle in one of your languages. Skipped while a4kSubtitles' own Auto Search is on |
 
 ## Notes
 

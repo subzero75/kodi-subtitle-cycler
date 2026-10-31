@@ -384,15 +384,16 @@ A4K = 'service.subtitles.a4ksubtitles'
 
 
 def other_auto_download():
-    """Name of an enabled subtitle add-on that downloads a subtitle by itself when a video
-    starts (a4kSubtitles with auto search and auto download on), or ''."""
+    """Name of an enabled subtitle add-on that takes care of the subtitle by itself when a
+    video starts, or ''. a4kSubtitles' auto search either downloads one (with auto download)
+    or opens Kodi's subtitle window for you to pick; loading another one then would clash."""
     details = c.rpc('Addons.GetAddonDetails', {'addonid': A4K, 'properties': ['enabled']})
     if not (details.get('addon') or {}).get('enabled'):
         return ''
     try:
         import xbmcaddon
         a = xbmcaddon.Addon(A4K)
-        if a.getSetting('general.auto_search') == 'true' and a.getSetting('general.auto_download') == 'true':
+        if a.getSetting('general.auto_search') == 'true':
             return 'a4kSubtitles'
     except Exception:
         pass

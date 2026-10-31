@@ -99,4 +99,4 @@ msgstr "تحميل ترجمة تلقائياً لكل فيديو"
 
 msgctxt "#32023"
 msgid "For videos that have an IMDb id. Use it with a subtitle add-on that does not download by itself (for example SubBridge or OpenSubtitles). The first result of the subtitle service chosen in Kodi (Settings - Player - Subtitles) is loaded, unless the video already has a subtitle in your language. Skipped while a4kSubtitles' own automatic download is on, so the two never load at the same time."
-msgstr "للفيديوهات التي لها رقم IMDb. استخدمه مع إضافة ترجمة لا تنزّل من تلقاء نفسها (مثل SubBridge أو OpenSubtitles). تُحمَّل أول نتيجة من خدمة الترجمة المختارة في كودي (الإعدادات - المشغل - الترجمة)، إلا إذا كان في الفيديو ترجمة بلغتك. يتوقف ما دام التنزيل التلقائي في a4kSubtitles مشغلاً، حتى لا تُحمَّل ترجمتان معاً."
+msgstr "للفيديوهات التي لها رقم IMDb. استخدمه مع إضافة ترجمة لا تنزّل من تلقاء نفسها (مثل SubBridge أو OpenSubtitles). تُحمَّل أول نتيجة من خدمة الترجمة المختارة في كودي (الإعدادات - المشغل - الترجمة)، إلا إذا كان في الفيديو ترجمة بلغتك. يتوقف ما دام البحث التلقائي (Auto Search) في a4kSubtitles مشغلاً، حتى لا يتعارضا."
