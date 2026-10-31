@@ -404,11 +404,25 @@ def reference_starts(video, quiet=False):
     return starts
 
 
+# The button sets DEFER_SYNC: then a subtitle is not held back while the video's embedded
+# subtitle is still being read for sync (that can take 10 s on a stream). It is loaded at
+# once and SYNC_LATER says sync still has to be done when the read is over.
+DEFER_SYNC = []
+SYNC_LATER = []
+
+
+def reference_ready(video):
+    return os.path.exists(os.path.join(REF_DIR, digest(video.encode('utf-8')) + '.json'))
+
+
 def sync_cues(cues):
     """Shift cues to match the video's embedded subtitles. Returns (cues, tag or None)."""
     try:
         video = xbmc.Player().getPlayingFile()
     except RuntimeError:
+        return cues, None
+    if DEFER_SYNC and video and not video.startswith(('plugin://', 'pvr://')) and not reference_ready(video):
+        SYNC_LATER.append(video)
         return cues, None
     ref = reference_starts(video)
     if not ref:

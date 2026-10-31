@@ -179,11 +179,41 @@ def main():
     start = time.time()
     home.setProperty(PROP_RUNNING, str(start))
     c.set_busy(start)
+    later = None
     try:
-        cycle(p)
+        later = cycle(p)
     finally:
         c.set_busy(start, time.time())
         home.clearProperty(PROP_RUNNING)
+    if later:
+        try:
+            sync_later(p, *later)
+        except Exception as e:
+            c.log('sync after loading failed: %s' % e, xbmc.LOGWARNING)
+
+
+def sync_later(p, index, got, episodes, video):
+    """The subtitle was loaded before the embedded subtitle was read: sync it now, and load
+    the synced copy if the subtitle is still the one showing."""
+    ref = c.reference_starts(video, quiet=True)  # waits for the service's read if it runs
+    if not ref or len(ref) < 30:
+        return  # nothing to sync with (sync_cues logs why when it is used)
+    st = load_state()
+    if st.get('video') != video or st.get('index') != index or not p.isPlayingVideo() \
+            or p.getPlayingFile() != video or not os.path.exists(got):
+        return  # another subtitle or video meanwhile
+    del c.DEFER_SYNC[:]
+    sub, fixed = c.prepare(got, episodes)
+    if sub is None:
+        return
+    if c.NOTES:
+        c.notify('%s' % c.NOTES[0], 4000)
+        return
+    tags = [t for t in c.LAST_TAGS if t.startswith('sync ')]
+    if tags:
+        c.load(p, sub, got if fixed else None)
+        c.log('synced after loading: %s -> %s' % (', '.join(tags), sub))
+        c.notify('%d/%d  %s' % (index + 1, len(st['results']), ' '.join(tags)), 3000)
 
 
 def load_state():
@@ -200,7 +230,10 @@ def save_state(st):
 
 
 def cycle(p):
+    """Load the next subtitle. Returns what sync_later needs when sync waits for the
+    embedded subtitle read, else None."""
     cur = p.getPlayingFile()
+    c.DEFER_SYNC[:] = [True]
     st = load_state()
     if st.get('video') != cur or not st.get('results'):
         c.notify('...', 2000)
@@ -250,6 +283,7 @@ def cycle(p):
             if hashes[str(i)] in already:
                 continue
             c.SOURCE[:] = [c.source_name(st['results'][i]['file'])]
+            del c.SYNC_LATER[:]
             prep = c.prepare(got, st.get('episodes') or ())
             if prep[0] is None:
                 # A zip with a text note, a broken download...: never worth showing
@@ -293,6 +327,8 @@ def cycle(p):
                                     st['results'][chosen]['label'][:70],
                                     ''.join('  (%s)' % t for t in c.NOTES)), 4000)
     save_state(st)
+    if chosen is not None and c.SYNC_LATER and c.sync_on():
+        return chosen, path, st.get('episodes') or (), cur
 
 
 main()
