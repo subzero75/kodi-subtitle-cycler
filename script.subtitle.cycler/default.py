@@ -76,7 +76,11 @@ def name_metas():
     return [meta] if meta else []
 
 
-def search():
+def search(todo=None):
+    """(results, episode hints, subtitle add-ons not asked yet). Add-ons are asked in order
+    and the search stops at the first one with results: the next presses ask the others
+    when they are needed, so a quick add-on is not held up by slow ones. Anime asks all,
+    to rank every release by its episode numbering."""
     langs = c.rpc('Settings.GetSettingValue', {'setting': 'subtitles.languages'}).get('value') or ['English']
     anime = otaku_metas() or name_metas()
     if anime:
@@ -86,7 +90,12 @@ def search():
         episodes = {playing_episode()} if playing_episode() else None
     hints = {e[1] for e in episodes or ()}
     results = []
-    for addon_id, name in services():
+    todo = services() if todo is None else [tuple(t) for t in todo]
+    left = []
+    for k, (addon_id, name) in enumerate(todo):
+        if results and not anime:
+            left = todo[k:]
+            break
         if anime and addon_id == 'service.subtitles.a4ksubtitles':
             from resources.lib import otaku
             seen_files = set()
@@ -130,7 +139,20 @@ def search():
         # try the ones named after this episode first, packs next, other episodes last
         results.sort(key=lambda r: r.get('rank', 1))
         c.log('anime results, best first: %s' % ['%s %s' % (r.get('rank', 1), r['label'][-60:]) for r in results])
-    return results, hints
+    if left:
+        c.log('not asked yet: %s' % ', '.join(a for a, _ in left))
+    return results, hints, left
+
+
+def ask_more(st):
+    """Ask the subtitle add-ons not asked yet, until one has results; True when results were added."""
+    while st.get('pending'):
+        res, _, left = search(st['pending'])
+        st['pending'] = left
+        if res:
+            st['results'].extend(res)
+            return True
+    return False
 
 
 def download(item):
@@ -182,15 +204,24 @@ def cycle(p):
     st = load_state()
     if st.get('video') != cur or not st.get('results'):
         c.notify('...', 2000)
-        res, hints = search()
+        res, hints, left = search()
         if not res:
             c.notify('No subtitles found')
             return
-        st = {'video': cur, 'results': res, 'index': -1, 'episodes': sorted(hints)}
+        st = {'video': cur, 'results': res, 'index': -1, 'episodes': sorted(hints), 'pending': left}
+    elif st.get('pending') and st['index'] + 1 >= len(st['results']):
+        # the last result of the add-ons asked so far: ask the next add-on instead of starting over
+        ask_more(st)
     # Remember per result what was downloaded, so results are not downloaded again and again
     # (subtitle sites have daily download limits)
     hashes = st.setdefault('hashes', {})
     failed = set(st.setdefault('failed', []))
+    if st.get('pending'):
+        # nothing new left among the results so far (failed, shown or not fitting): ask on
+        used = c.seen()
+        mism = set(st.get('mismatch', []))
+        if all(i in failed or i in mism or hashes.get(str(i)) in used for i in range(len(st['results']))):
+            ask_more(st)
     n = len(st['results'])
     order = [(st['index'] + k) % n for k in range(1, n + 1)]
     mismatch = set(st.setdefault('mismatch', []))
@@ -258,7 +289,7 @@ def cycle(p):
         tags = list(c.LAST_TAGS)
         if not c.load(p, sub, path if fixed else None):
             tags = []
-        c.notify('%d/%d%s  %s%s' % (chosen + 1, n, ''.join(' +' + t for t in tags),
+        c.notify('%d/%s%s  %s%s' % (chosen + 1, '%d+' % n if st.get('pending') else n, ''.join(' +' + t for t in tags),
                                     st['results'][chosen]['label'][:70],
                                     ''.join('  (%s)' % t for t in c.NOTES)), 4000)
     save_state(st)

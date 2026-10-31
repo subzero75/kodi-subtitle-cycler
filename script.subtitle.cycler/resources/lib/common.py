@@ -351,6 +351,23 @@ def reference_starts(video, quiet=False):
             return json.load(fh).get('starts')
     except (OSError, ValueError):
         pass
+    # The service may be reading the same video right now (prefetch): wait for its result
+    # instead of reading the stream a second time at once
+    busy = cache + '.busy'
+    try:
+        waited = time.time()
+        while time.time() - os.path.getmtime(busy) < 60 and time.time() - waited < 30:
+            xbmc.sleep(250)
+            if os.path.exists(cache):
+                with open(cache) as fh:
+                    return json.load(fh).get('starts')
+    except (OSError, ValueError):
+        pass
+    try:
+        os.makedirs(REF_DIR, exist_ok=True)
+        open(busy, 'w').close()
+    except OSError:
+        pass
     from resources.lib import mkvsubs
     if not quiet:
         notify('Reading embedded subtitles for sync...', 2000)
@@ -375,8 +392,13 @@ def reference_starts(video, quiet=False):
     log('reference for sync: %s, %d lines in %.1fs' % (note, len(starts or []), time.time() - t0))
     try:
         os.makedirs(REF_DIR, exist_ok=True)
-        with open(cache, 'w') as fh:
+        with open(cache + '.tmp', 'w') as fh:
             json.dump({'video': video, 'starts': starts, 'note': note}, fh)
+        os.replace(cache + '.tmp', cache)
+    except OSError:
+        pass
+    try:
+        os.remove(busy)
     except OSError:
         pass
     return starts
