@@ -47,8 +47,15 @@ class Player(xbmc.Player):
         self.holding = False
         self.bad_sub = 0
         self.other_auto = other_auto_download()
+        # Kodi already knows the IMDb id and no other add-on downloads by itself: nothing to
+        # wait for (tagging is for videos without an id, a4kSubtitles' own download is off)
+        quick = (not self.other_auto and xbmc.getInfoLabel('VideoPlayer.IMDBNumber').startswith('tt')
+                 and not self._is_otaku())
+        if quick:
+            self.anime_auto = time.time() + 1.5
         if c.setting_on('hold_start', False):
-            self.anime_auto = time.time() + 4  # no reason to wait while the video is paused
+            if not quick:
+                self.anime_auto = time.time() + 4  # no reason to wait while the video is paused
             # Optional: keep the video paused at its start until a subtitle is ready (or the
             # wait runs out); Original Audio can hold it at the same time for the audio track
             self.holding = True
@@ -448,7 +455,7 @@ def run():
     monitor = xbmc.Monitor()
     player = Player()
     c.log('service started')
-    while not monitor.waitForAbort(1):
+    while not monitor.waitForAbort(0.25 if (player.anime_auto or player.holding) else 1):
         if player.isPlayingVideo() and player.start:
             if player.prefetch and time.time() > player.prefetch:
                 player.prefetch = 0
