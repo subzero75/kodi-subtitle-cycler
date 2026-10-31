@@ -8,8 +8,14 @@ LOCK_TIMEOUT = 90  # seconds; a stale lock (e.g. after a crash) is ignored after
 
 
 def services():
+    """Enabled subtitle add-ons; the one chosen in Kodi for this kind of video (Settings -
+    Player - Subtitles - default TV show / movie service) comes first, so its results lead."""
     res = c.rpc('Addons.GetAddons', {'type': 'xbmc.subtitle.module', 'enabled': True, 'properties': ['name']})
-    return [(a['addonid'], a.get('name') or a['addonid']) for a in res.get('addons') or []]
+    found = [(a['addonid'], a.get('name') or a['addonid']) for a in res.get('addons') or []]
+    kind = 'subtitles.tv' if playing_episode() else 'subtitles.movie'
+    default = c.rpc('Settings.GetSettingValue', {'setting': kind}).get('value') or ''
+    found.sort(key=lambda a: a[0] != default)
+    return found
 
 
 EPISODE = re.compile(r'(?<![a-z0-9])s(\d{1,2})[ ._-]?e(\d{1,3})(?!\d)', re.I)

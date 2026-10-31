@@ -63,6 +63,11 @@
           <default>true</default>
           <control type="toggle"/>
         </setting>
+        <setting id="auto_all" type="boolean" label="32022" help="32023">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
       </group>
       <group id="3" label="32016">
         <setting id="hold_start" type="boolean" label="32017" help="32018">

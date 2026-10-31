@@ -20,6 +20,7 @@ class Player(xbmc.Player):
         self.holding = False
         self.bad_sub = 0
         self.auto_started = 0
+        self.other_auto = ''
 
     @staticmethod
     def _is_otaku():
@@ -45,6 +46,7 @@ class Player(xbmc.Player):
         self.auto_started = 0
         self.holding = False
         self.bad_sub = 0
+        self.other_auto = other_auto_download()
         if c.setting_on('hold_start', False):
             self.anime_auto = time.time() + 4  # no reason to wait while the video is paused
             # Optional: keep the video paused at its start until a subtitle is ready (or the
@@ -378,6 +380,25 @@ def has_wanted_subtitle(player):
         return False
 
 
+A4K = 'service.subtitles.a4ksubtitles'
+
+
+def other_auto_download():
+    """Name of an enabled subtitle add-on that downloads a subtitle by itself when a video
+    starts (a4kSubtitles with auto search and auto download on), or ''."""
+    details = c.rpc('Addons.GetAddonDetails', {'addonid': A4K, 'properties': ['enabled']})
+    if not (details.get('addon') or {}).get('enabled'):
+        return ''
+    try:
+        import xbmcaddon
+        a = xbmcaddon.Addon(A4K)
+        if a.getSetting('general.auto_search') == 'true' and a.getSetting('general.auto_download') == 'true':
+            return 'a4kSubtitles'
+    except Exception:
+        pass
+    return ''
+
+
 def auto_load_reason(player):
     """Why the button logic should load a subtitle now, or None."""
     if c.seen():
@@ -390,7 +411,11 @@ def auto_load_reason(player):
         return 'otaku anime'
     from resources.lib import otaku
     if xbmc.getInfoLabel('VideoPlayer.IMDBNumber').startswith('tt') and not otaku.tagged_by_us():
-        return None  # a4kSubtitles takes care of it (it had the IMDb id from the start)
+        if player.other_auto:
+            return None  # a4kSubtitles downloads one itself (it had the IMDb id from the start)
+        if not c.setting_on('auto_all', False) or has_wanted_subtitle(player):
+            return None
+        return 'automatic subtitle at start'
     if not c.setting_on('noid_auto') or has_wanted_subtitle(player):
         return None
     return 'no IMDb id'
@@ -413,8 +438,9 @@ def hold_done(player):
     if player.embedded_busy:
         return False
     # no automatic load was needed: give a subtitle add-on's own auto-download time to search
-    # and download (a4kSubtitles often needs 10-15 s); the hold's own limit still applies
-    return not player.anime_auto and time.time() - player.start > 25
+    # and download (a4kSubtitles often needs 10-15 s); the hold's own limit still applies.
+    # Without one, nothing else is coming.
+    return not player.anime_auto and time.time() - player.start > (25 if player.other_auto else 0)
 
 
 def run():

@@ -2,7 +2,7 @@
 
 A Kodi add-on with four independent features:
 
-1. **One-button subtitle cycling** – press a remote button during playback to download and load the next subtitle result from **all enabled subtitle add-ons** (a4kSubtitles, OpenSubtitles, Subdl, …). A notification shows `index/total  source - language`.
+1. **One-button subtitle cycling** – press a remote button during playback to download and load the next subtitle result from **all enabled subtitle add-ons** (a4kSubtitles, OpenSubtitles, Subdl, …). A notification shows `index/total  source - language`. The subtitle service you chose in Kodi (Settings → Player → Subtitles → default TV show / movie service) comes first in the list.
 2. **No gaps between subtitle lines** (optional) – a background service closes short gaps between lines of every external SRT subtitle, however it was loaded: auto-downloaded at start, picked from Kodi's subtitle window, or loaded with the button. The text no longer blinks between lines.
 3. **Sync to the embedded subtitles** (optional, **experimental**) – when the video is an MKV with a text subtitle track (in any language), external SRT subtitles are shifted, and stretched for 23.976/24/25 fps mix-ups, so their timing matches that track. Handy when the only well-timed track is in another language than the one you want.
 4. **Subtitles for videos Kodi has no IMDb id for** (optional, **experimental**) – a4kSubtitles only searches, and only auto-downloads, when Kodi knows the video's IMDb id. Some players do not pass it on, and `.strm` files or links played from a file list have none. The add-on then finds the id itself and loads the first subtitle that fits:
@@ -50,6 +50,7 @@ Running the add-on from the Programs menu (with no video playing) opens its sett
 | Find subtitles for anime played from Otaku | On | Experimental. a4kSubtitles search with the ids from Otaku's database. Only does something while an Otaku episode plays |
 | Load a subtitle automatically when an Otaku episode starts | On | About 15 seconds after the episode starts, the first subtitle that fits the video is loaded |
 | Load a subtitle automatically when the video has no IMDb id | On | a4kSubtitles only auto-downloads when Kodi knows the IMDb id, and some players (e.g. some TMDb Helper players) do not pass it on. Then the first subtitle that fits is loaded about 15 seconds after the start, unless the video already has a subtitle track in one of your subtitle languages |
+| Load a subtitle automatically for every video | Off | For videos with an IMDb id, when you use a subtitle add-on that doesn't download by itself (e.g. SubBridge). The first result of Kodi's chosen subtitle service is loaded, unless the video already has a subtitle in one of your languages. Skipped while a4kSubtitles' own auto-download is on |
 
 ## Notes
 
